@@ -1,7 +1,9 @@
 build/
 *.o
+*.a
 *.exe
 .vscode/
+.idea/
 CMakeCache.txt
 CMakeFiles/
 *.pyc
