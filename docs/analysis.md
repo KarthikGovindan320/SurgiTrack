@@ -2,7 +2,7 @@
 
 ## 1. How `estimatePoseSingleMarkers` Works Internally
 
-The `cv::aruco::estimatePoseSingleMarkers` function is the cornerstone of our trolley tracking system. Understanding its internal mechanics is essential for interpreting pose estimates correctly and for identifying the performance boundaries that motivate our Kalman filter enhancement.
+The `cv::aruco::estimatePoseSingleMarkers` function is the cornerstone of our surgical instrument tracking system. Understanding its internal mechanics is essential for interpreting pose estimates correctly and for identifying the performance boundaries that motivate our Kalman filter enhancement.
 
 ### 1.1 From 2D Corners to 3D Pose
 
@@ -28,7 +28,7 @@ Our analysis identifies four primary error sources affecting pose estimation acc
 
 2. **Calibration error propagation**: Errors in the camera intrinsic matrix (focal length, principal point) and distortion coefficients propagate directly into the PnP solution. A 1% error in focal length at 1 metre distance introduces approximately 10 mm of depth error. This is why we require calibration reprojection error below 0.5 pixels.
 
-3. **Marker planarity assumption**: The PnP solver assumes the marker lies perfectly flat in a plane (Z=0). In practice, markers printed on paper may curl slightly, and markers attached to a trolley surface may not be perfectly planar. A 1 mm departure from planarity can introduce up to 2 mm of pose error at 1 metre distance.
+3. **Marker planarity assumption**: The PnP solver assumes the marker lies perfectly flat in a plane (Z=0). In practice, markers printed on paper may curl slightly, and markers attached to a surgical instrument surface may not be perfectly planar. A 1 mm departure from planarity can introduce up to 2 mm of pose error at 1 metre distance.
 
 4. **Lens distortion residuals**: After undistortion using the calibrated distortion model, residual distortion — particularly at the image periphery — can shift corner positions by 0.1 to 0.5 pixels. This effect is most pronounced for wide-angle lenses and is minimised by using markers near the image centre.
 
@@ -38,7 +38,7 @@ Our analysis identifies four primary error sources affecting pose estimation acc
 
 ### 2.1 Computational Efficiency and Deployability
 
-Fiducial marker systems are uniquely suited to healthcare environments because they require no GPU and achieve real-time processing rates (30+ FPS) on low-cost embedded hardware such as a Raspberry Pi 4 or a Jetson Nano. This is in stark contrast to markerless visual odometry or deep learning-based object detection systems, which typically require dedicated GPU acceleration. In a hospital setting, deploying GPU-equipped hardware on every medicine trolley is neither cost-effective nor practical. A camera module costing under $30 paired with a set of printed ArUco markers provides a complete 6-DoF tracking solution at minimal hardware cost and zero cloud dependency — a critical advantage in clinical environments where network latency and data privacy concerns constrain cloud-based architectures.
+Fiducial marker systems are uniquely suited to healthcare environments because they require no GPU and achieve real-time processing rates (30+ FPS) on low-cost embedded hardware such as a Raspberry Pi 4 or a Jetson Nano. This is in stark contrast to markerless visual odometry or deep learning-based object detection systems, which typically require dedicated GPU acceleration. In a hospital setting, deploying GPU-equipped hardware on every surgical instrument is neither cost-effective nor practical. A camera module costing under $30 paired with a set of printed ArUco markers provides a complete 6-DoF tracking solution at minimal hardware cost and zero cloud dependency — a critical advantage in clinical environments where network latency and data privacy concerns constrain cloud-based architectures.
 
 ### 2.2 Electromagnetic Compatibility
 
@@ -46,7 +46,7 @@ In the operating room (OR) and intensive care unit (ICU), radio-frequency soluti
 
 ### 2.3 Quantitative Accuracy Assessment
 
-Our testing confirms that pose accuracy at 1 metre distance with a 10 cm marker and a calibrated 1080p camera is typically 2 to 5 mm in translation and 0.5 to 1 degree in rotation. This level of accuracy is more than sufficient for corridor-level collision avoidance, where hazard zones are defined with 25 to 30 cm boundaries. However, it is insufficient for surgical-precision tasks (sub-millimetre accuracy required), confirming that ArUco-based tracking is appropriate for our logistics use case but would not be suitable for, say, surgical instrument guidance without additional sensing modalities.
+Our testing confirms that pose accuracy at 1 metre distance with a 10 cm marker and a calibrated 1080p camera is typically 2 to 5 mm in translation and 0.5 to 1 degree in rotation. This level of accuracy is more than sufficient for corridor-level sterile field breach avoidance, where sterile zones are defined with 25 to 30 cm boundaries. However, it is insufficient for surgical-precision tasks (sub-millimetre accuracy required), confirming that ArUco-based tracking is appropriate for our logistics use case but would not be suitable for, say, surgical instrument guidance without additional sensing modalities.
 
 ---
 
@@ -54,15 +54,15 @@ Our testing confirms that pose accuracy at 1 metre distance with a 10 cm marker 
 
 ### 3.1 The Reaction Window Problem
 
-Standard ArUco detection provides instantaneous pose — a snapshot of where the trolley is right now — but maintains no memory of where the trolley has been or where it is heading. This is a critical limitation for collision avoidance. Consider the following scenario:
+Standard ArUco detection provides instantaneous pose — a snapshot of where the surgical instrument is right now — but maintains no memory of where the surgical instrument has been or where it is heading. This is a critical limitation for sterile field breach avoidance. Consider the following scenario:
 
-A medicine trolley is being pushed through a corridor at walking speed (approximately 0.8 m/s). A patient in a wheelchair emerges from a doorway 0.5 metres ahead. The time from the patient's appearance to potential contact is:
+A surgical instrument is being pushed through a corridor at walking speed (approximately 0.8 m/s). A patient in a wheelchair emerges from a doorway 0.5 metres ahead. The time from the patient's appearance to potential contact is:
 
 ```
 t_reaction = distance / speed = 0.5 m / 0.8 m/s ≈ 625 ms
 ```
 
-In 625 milliseconds, a single-frame detection system can only detect the trolley's current position at the moment of collision — it cannot issue a predictive warning. The nurse receives no advance notice. By the time the collision is visible in the camera frame, it is too late to change course.
+In 625 milliseconds, a single-frame detection system can only detect the surgical instrument's current position at the moment of sterile field breach — it cannot issue a predictive warning. The nurse receives no advance notice. By the time the sterile field breach is visible in the camera frame, it is too late to change course.
 
 ### 3.2 The Kalman Filter Solution
 
@@ -72,11 +72,11 @@ A Kalman filter addresses this limitation by maintaining a state vector that inc
 
 2. **Update**: When a new ArUco measurement arrives, the filter incorporates it using optimal linear estimation, weighting the measurement against the prediction based on their respective uncertainties (measurement noise R vs. process noise Q).
 
-By calling `predict()` with a horizon of 500 milliseconds, the system can estimate where the trolley will be half a second in the future. This predicted position is then compared against pre-defined hazard zones (corridor walls, doorframes, patient bed zones). If the predicted trajectory intersects a hazard zone, a collision warning is issued immediately — giving the nurse approximately 500 ms of advance warning to slow down or change direction.
+By calling `predict()` with a horizon of 500 milliseconds, the system can estimate where the surgical instrument will be half a second in the future. This predicted position is then compared against pre-defined sterile zones (corridor walls, doorframes, instrument tray zones). If the predicted trajectory intersects a sterile zone, a sterile field breach warning is issued immediately — giving the nurse approximately 500 ms of advance warning to slow down or change direction.
 
 ### 3.3 Handling Temporary Occlusion
 
-An additional benefit of the Kalman filter is graceful handling of temporary marker occlusion. When a nurse's hand or body briefly blocks the camera's view of the markers, the ArUco detector returns zero detections. Without temporal filtering, the system would lose all tracking state and reset when markers reappear. With the Kalman filter, the predict-only step (no measurement update) extrapolates the trolley's last known position and velocity, maintaining a continuous trajectory estimate through brief occlusion events. The growing uncertainty (reflected in the error covariance matrix P) naturally increases the collision warning sensitivity during occlusion, which is the desired behaviour: when the system is less certain about the trolley's position, it should be more cautious, not less.
+An additional benefit of the Kalman filter is graceful handling of temporary marker occlusion. When a nurse's hand or body briefly blocks the camera's view of the markers, the ArUco detector returns zero detections. Without temporal filtering, the system would lose all tracking state and reset when markers reappear. With the Kalman filter, the predict-only step (no measurement update) extrapolates the surgical instrument's last known position and velocity, maintaining a continuous trajectory estimate through brief occlusion events. The growing uncertainty (reflected in the error covariance matrix P) naturally increases the sterile field breach warning sensitivity during occlusion, which is the desired behaviour: when the system is less certain about the surgical instrument's position, it should be more cautious, not less.
 
 ### 3.4 Why Not a More Complex Filter?
 
@@ -86,7 +86,7 @@ We chose a linear Kalman filter with a constant-velocity model over more sophist
 
 2. **Computational cost**: The 6-state, 3-measurement Kalman filter involves 6×6 matrix operations that execute in microseconds on any modern CPU. This is negligible compared to the ArUco detection time (~10 ms per frame), ensuring the enhancement adds no perceptible latency.
 
-3. **Adequacy for the domain**: Medicine trolleys move at walking speed with gradual accelerations and decelerations. The constant-velocity assumption is valid over the 500 ms prediction horizon, as significant velocity changes (stopping, turning) occur over longer timescales (1–2 seconds). For predicting 0.5 seconds ahead, a constant-velocity model is both sufficient and robust.
+3. **Adequacy for the domain**: Medicine instruments move at walking speed with gradual accelerations and decelerations. The constant-velocity assumption is valid over the 500 ms prediction horizon, as significant velocity changes (stopping, turning) occur over longer timescales (1–2 seconds). For predicting 0.5 seconds ahead, a constant-velocity model is both sufficient and robust.
 
 ---
 

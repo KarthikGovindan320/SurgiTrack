@@ -1,10 +1,5 @@
 %YAML:1.0
 ---
-# Camera calibration data for MediMark AR
-# Generated using OpenCV camera calibration with 9x6 chessboard pattern
-# Camera: Generic 1080p webcam
-# Reprojection error: 0.42 pixels (below 0.5 threshold)
-# Number of calibration images: 20
 camera_matrix: !!opencv-matrix
    rows: 3
    cols: 3

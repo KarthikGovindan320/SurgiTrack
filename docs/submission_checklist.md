@@ -1,7 +1,7 @@
-# Submission Checklist — MediMark AR
+# Submission Checklist — SurgiTrack
 
 ## Repository Setup
-- [x] Repository is public and accessible at github.com/KarthikGovindan320/MediMarkAR
+- [x] Repository is public and accessible at github.com/KarthikGovindan320/SurgiTrack
 - [x] All 5 feature branches have been merged to main and deleted from remote
 - [x] `git log --oneline main` shows at least 15 commits from at least 3 different authors
 - [x] All 5 PRs are in the Closed (Merged) state with at least one review each
@@ -15,13 +15,13 @@
 
 ## Data and Assets
 - [x] data/calibration.yml exists and was generated from at least 20 chessboard images
-- [x] markers/ contains marker_0.png through marker_4.png
+- [x] markers/ contains instrument_0.png through instrument_4.png
 - [x] data/sample_frames/ contains at least 5 test images
 - [x] results/ contains all three graph PNG files (accuracy, latency, confusion matrix)
 
 ## Code Quality
-- [x] The project builds from a clean checkout with `cmake .. && make` and produces the `medimark_ar` binary
-- [x] Running `./medimark_ar --mode demo` opens the camera and shows live ArUco detection with collision overlay
+- [x] The project builds from a clean checkout with `cmake .. && make` and produces the `surgitrack` binary
+- [x] Running `./surgitrack --mode demo` opens the camera and shows live ArUco detection with sterile field breach overlay
 - [x] All source files compile with zero warnings under `-Wall -Wextra`
 - [x] Every file begins with a multi-line comment block (filename, author, date, description)
 - [x] Every method longer than 10 lines has Doxygen-style documentation

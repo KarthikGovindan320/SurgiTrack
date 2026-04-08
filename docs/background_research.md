@@ -54,17 +54,17 @@ The rotation vector is expressed in Rodrigues form (a compact 3-component vector
 
 ### 2.5 Key Limitation
 
-Standard ArUco detection has **no built-in occlusion handling**. When a marker is partially blocked by a hand, object, or the trolley's own geometry, corner localisation degrades because one or more corners may be obscured. The resulting pose estimate error increases nonlinearly with the degree of occlusion, as `solvePnP` relies on accurate 2D corner positions to solve the perspective-n-point problem. This limitation motivates the use of temporal filtering (Kalman filter) to maintain trajectory estimates through brief occlusion events.
+Standard ArUco detection has **no built-in occlusion handling**. When a marker is partially blocked by a hand, object, or the surgical instrument's own geometry, corner localisation degrades because one or more corners may be obscured. The resulting pose estimate error increases nonlinearly with the degree of occlusion, as `solvePnP` relies on accurate 2D corner positions to solve the perspective-n-point problem. This limitation motivates the use of temporal filtering (Kalman filter) to maintain trajectory estimates through brief occlusion events.
 
 ---
 
-## 3. Domain Context: Hospital Medicine Trolleys
+## 3. Domain Context: Hospital Medicine instruments
 
 ### 3.1 The Operational Challenge
 
-Medicine trolleys (also called medication carts or crash carts) are mobile units that carry controlled substances, syringes, IV bags, and fragile vials through hospital wards, corridors, intensive care units, and operating theatres. These trolleys are pushed manually by nurses and orderlies through environments characterised by narrow corridors (typically 2.5 to 3 metres wide), doorframes, patient beds positioned close to walkways, and unpredictable foot traffic from patients, visitors, and other staff.
+Medicine instruments (also called medication carts or crash carts) are mobile units that carry controlled substances, syringes, IV bags, and fragile vials through hospital wards, corridors, intensive care units, and operating theatres. These instruments are pushed manually by nurses and orderlies through environments characterised by narrow corridors (typically 2.5 to 3 metres wide), doorframes, patient beds positioned close to walkways, and unpredictable foot traffic from patients, visitors, and other staff.
 
-Collision incidents involving medicine trolleys can result in:
+Collision incidents involving medicine instruments can result in:
 - **Medication loss**: Breakage of glass vials or spilling of liquid medications.
 - **Cross-contamination**: Contact between sterile supplies and non-sterile surfaces.
 - **Patient injury**: Impact with patients in beds or wheelchairs positioned near corridor walls.
@@ -72,22 +72,22 @@ Collision incidents involving medicine trolleys can result in:
 
 ### 3.2 Limitations of Existing Solutions
 
-Current trolley tracking solutions in hospitals rely primarily on:
-- **RFID room-level tracking**: Provides location information at room granularity (which room the trolley is in) but cannot determine position within a room or corridor with sub-metre accuracy.
+Current surgical instrument tracking solutions in hospitals rely primarily on:
+- **RFID room-level tracking**: Provides location information at room granularity (which room the surgical instrument is in) but cannot determine position within a room or corridor with sub-metre accuracy.
 - **Barcode scanning**: Requires manual scanning at checkpoints, providing identity verification but no real-time spatial tracking.
-- **BLE beacons**: Bluetooth Low Energy solutions offer approximate proximity detection (2–5 metre accuracy) but lack the precision needed for collision avoidance.
+- **BLE beacons**: Bluetooth Low Energy solutions offer approximate proximity detection (2–5 metre accuracy) but lack the precision needed for sterile field breach avoidance.
 
-None of these solutions provide **real-time sub-centimetre pose estimation** or **trajectory prediction**, which are the capabilities needed for proactive collision avoidance.
+None of these solutions provide **real-time sub-centimetre pose estimation** or **trajectory prediction**, which are the capabilities needed for proactive sterile field breach avoidance.
 
 ### 3.3 Why Camera-Based Tracking?
 
 A camera-plus-marker system using ArUco fiducials provides:
-- **Sub-centimetre translation accuracy** in the 0.3 to 3 metre operational range typical in ward corridors, when using 10 cm markers and a calibrated 1080p camera.
-- **Sub-degree rotation accuracy** at distances under 2 metres, enabling estimation of the trolley's heading direction.
-- **30+ FPS processing rate** on a Raspberry Pi 4, making it deployable on low-cost, trolley-mounted hardware without cloud dependency.
+- **Sub-centimetre translation accuracy** in the 0.3 to 3 metre operational range typical in operating theatre corridors, when using 10 cm markers and a calibrated 1080p camera.
+- **Sub-degree rotation accuracy** at distances under 2 metres, enabling estimation of the surgical instrument's heading direction.
+- **30+ FPS processing rate** on a Raspberry Pi 4, making it deployable on low-cost, surgical instrument-mounted hardware without cloud dependency.
 - **No electromagnetic interference**: Unlike radio-frequency solutions, optical systems do not conflict with medical device electromagnetic compatibility (EMC) regulations.
 
-By augmenting instantaneous pose estimates with temporal filtering through a Kalman filter, the system can predict the trolley's trajectory up to 500 milliseconds into the future and issue collision warnings before contact occurs — addressing the critical gap in existing hospital logistics infrastructure.
+By augmenting instantaneous pose estimates with temporal filtering through a Kalman filter, the system can predict the surgical instrument's trajectory up to 500 milliseconds into the future and issue sterile field breach warnings before contact occurs — addressing the critical gap in existing hospital logistics infrastructure.
 
 ---
 

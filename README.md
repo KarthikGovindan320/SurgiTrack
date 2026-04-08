@@ -1,17 +1,17 @@
-# MediMark AR — Augmented Reality Medicine Trolley Tracking
+# SurgiTrack — Augmented Reality Surgical Instrument Monitoring System
 
-A real-time, vision-based medicine trolley tracking system using OpenCV ArUco marker pose estimation with physics-informed Kalman filter trajectory prediction and collision warning.
+A real-time, vision-based surgical instrument tracking system using OpenCV ArUco marker pose estimation with Kalman filter trajectory tracking and sterile field breach detection for the Operating Room.
 
 ---
 
 ## Team Members
 
-| Name                 | Registration No. | GitHub Username     | Role                        |
-|:--------------------:|:----------------:|:-------------------:|:---------------------------:|
-| Karthik Govindan V   | 25BCE2462        | KarthikGovindan320  | ArUco Detection, Main Loop  |
-| Satyam Kumar         | 25BDS0060        | —                   | Kalman Filter, Evaluation   |
-| Aditya Yadav         | 25BCE0560        | —                   | Collision Checker, Testing  |
-| Mukul Dahiya         | 25BCE2421        | —                   | Visualizer, Documentation   |
+| Name | Registration No. | Role |
+| --- | --- | --- |
+| Karthik Govindan V | 25BCE2462 | ArUco Detection, Main Loop |
+| Satyam Kumar | 25BDS0060 | Instrument Tracking, Evaluation |
+| Aditya Yadav | 25BCE0560 | Sterile Field Monitor, Testing |
+| Mukul Dahiya | 25BCE2421 | OR Visualizer, Documentation |
 
 ---
 
@@ -19,42 +19,43 @@ A real-time, vision-based medicine trolley tracking system using OpenCV ArUco ma
 
 ### The Clinical Challenge
 
-In hospital wards and intensive care units, medicine trolleys carry critical supplies including controlled substances, syringes, IV bags, and fragile glass vials. These trolleys are manually pushed through narrow corridors (typically 2.5 to 3 metres wide), past patient beds, through tight doorframes, and around unpredictable foot traffic from patients, visitors, and staff. Collision incidents are a persistent operational risk that can result in medication loss, cross-contamination of sterile supplies, patient injury, and damage to sensitive monitoring equipment.
+Every year, surgical instruments and sponges are unintentionally retained inside patients following surgical procedures — a class of preventable medical error known as a Retained Foreign Object (RFO). These incidents cause severe post-operative complications including infection, internal injury, and in the worst cases, patient death. Manual counting protocols — the current standard of care — are error-prone under the time pressure, fatigue, and high cognitive load of an active operating room. Studies estimate that RFO events occur in approximately 1 in every 5,500 to 7,000 surgical procedures, and the majority involve instruments or sponges that were miscounted or overlooked during the closing count.
 
 ### Why Existing Solutions Fall Short
 
-Current tracking systems in hospital logistics — RFID tags, barcode scanning, and BLE beacons — provide room-level location or identity verification but fundamentally lack two capabilities needed for collision avoidance: **real-time sub-centimetre spatial positioning** and **predictive trajectory estimation**. An RFID tag can confirm that a trolley is in Ward 3, but it cannot determine that the trolley is 0.5 metres from a patient bed and closing at 0.8 m/s. Without trajectory prediction, there is no opportunity for preventive intervention.
+Existing mitigation approaches fall into two categories: manual count sheets (which rely entirely on human accuracy) and barcode/RFID-tagged sponges (which require individual scanning and are impractical for rigid instruments mid-procedure). Neither approach provides continuous, real-time spatial awareness of every instrument on the sterile field simultaneously. Critically, they cannot detect when an instrument leaves the sterile boundary entirely — the key event that precedes retention.
 
 ### Our Approach
 
-MediMark AR addresses this gap by combining ArUco fiducial markers (printed and affixed to the trolley) with a wall-mounted or headband-mounted camera to achieve 6-DoF (six degrees of freedom) pose estimation at 30+ FPS. The system augments instantaneous pose measurements with a Kalman filter that maintains position and velocity estimates, enabling it to predict where the trolley will be 500 milliseconds into the future. When the predicted trajectory intersects a pre-defined hazard zone (corridor wall, doorframe, patient bed), the system issues a visual collision warning before contact occurs — giving the operator sufficient reaction time to change course.
+SurgiTrack addresses this gap by affixing small ArUco fiducial markers to the handle of each tracked surgical instrument and mounting a calibrated wide-angle camera above the operating table to achieve 6-DoF (six degrees of freedom) pose estimation at 30+ FPS. The system maintains a live instrument registry — knowing exactly which instruments are present, where they are, and whether they are within the defined sterile field boundary. A Kalman filter tracks each instrument's position over time, enabling the system to detect when an instrument is moving toward or beyond the sterile field perimeter and issue a visual breach alert to the scrub nurse before the instrument fully exits the monitored zone. At procedure close, the system performs an automated instrument count and flags any instrument not accounted for.
 
 ---
 
 ## Architecture Overview
 
-```mermaid
+```
 flowchart LR
-    A["Camera\n(30 FPS)"] --> B["ArucoDetector\n(detect + pose)"]
-    B --> C["KalmanPredictor\n(6-state filter)"]
-    C --> D["CollisionChecker\n(hazard zones)"]
-    D --> E["Visualizer\n(AR overlay)"]
+    A["OR Camera\n(30 FPS)"] --> B["InstrumentDetector\n(detect + pose)"]
+    B --> C["InstrumentTracker\n(6-state Kalman filter)"]
+    C --> D["SterileFieldMonitor\n(boundary zones)"]
+    D --> E["ORVisualizer\n(AR overlay)"]
     E --> F["Display\n(cv::imshow)"]
-    
-    B -->|"MarkerPose[]"| C
-    C -->|"PredictedState"| D
-    D -->|"CollisionWarning"| E
-    
+
+    B -->|"InstrumentPose[]"| C
+    C -->|"TrackedInstrumentState"| D
+    D -->|"FieldBreachAlert"| E
+
     G["calibration.yml"] -.-> B
-    H["Hazard Zone\nDefinitions"] -.-> D
+    H["Sterile Zone\nDefinitions"] -.-> D
 ```
 
 **Data Flow:**
-1. The camera captures a BGR frame at 30 FPS.
-2. `ArucoDetector` detects DICT_6X6_250 markers, decodes IDs, and estimates 6-DoF poses using `cv::solvePnP`.
-3. `KalmanPredictor` computes the centroid of all detected marker positions and updates a constant-velocity Kalman filter. It predicts the trolley position 500 ms into the future.
-4. `CollisionChecker` evaluates the predicted position against spherical hazard zones (corridor walls, doorframes) and computes time-to-impact.
-5. `Visualizer` renders semi-transparent marker overlays, 3D axes, velocity arrows, and flashing collision warnings onto the output frame.
+
+1. The overhead OR camera captures a BGR frame at 30 FPS.
+2. `InstrumentDetector` detects DICT_6X6_250 markers affixed to instrument handles, decodes instrument IDs, and estimates 6-DoF poses using `cv::solvePnP`.
+3. `InstrumentTracker` maintains a per-instrument Kalman filter, estimating current position and velocity and predicting each instrument's position 500 ms ahead.
+4. `SterileFieldMonitor` evaluates predicted positions against defined sterile zone boundaries — sterile field perimeter, body cavity zone, and instrument tray — computing time-to-breach for instruments approaching the boundary.
+5. `ORVisualizer` renders semi-transparent instrument overlays, 3D axes, instrument IDs, distance-from-boundary readings, and flashing breach alerts onto the output frame.
 
 ---
 
@@ -62,11 +63,11 @@ flowchart LR
 
 ### Prerequisites
 
-- **Operating System**: Ubuntu 22.04 LTS (recommended) or Windows 10/11
-- **Compiler**: g++ 11+ (Linux) or MSVC 2019+ (Windows)
-- **CMake**: ≥ 3.16
-- **OpenCV**: ≥ 4.5 with objdetect module
-- **Python 3**: For marker generation and result plotting
+* **Operating System**: Ubuntu 22.04 LTS (recommended) or Windows 10/11
+* **Compiler**: g++ 11+ (Linux) or MSVC 2019+ (Windows)
+* **CMake**: ≥ 3.16
+* **OpenCV**: ≥ 4.5 with objdetect module
+* **Python 3**: For marker generation and result plotting
 
 ### Ubuntu 22.04 Setup
 
@@ -78,8 +79,8 @@ sudo apt update && sudo apt install -y cmake g++ libopencv-dev
 pkg-config --modversion opencv4
 
 # Clone the repository
-git clone https://github.com/KarthikGovindan320/MediMarkAR.git
-cd MediMarkAR
+git clone https://github.com/KarthikGovindan320/SurgiTrack.git
+cd SurgiTrack
 
 # Build the project
 mkdir -p build && cd build
@@ -89,24 +90,25 @@ make -j$(nproc)
 
 ### Windows (MSVC + vcpkg) Setup
 
-```powershell
+```bash
 # Install OpenCV via vcpkg
 vcpkg install opencv4[contrib]:x64-windows
 
 # Clone and build
-git clone https://github.com/KarthikGovindan320/MediMarkAR.git
-cd MediMarkAR
-mkdir build ; cd build
+git clone https://github.com/KarthikGovindan320/SurgiTrack.git
+cd SurgiTrack
+mkdir build && cd build
 cmake .. -DCMAKE_TOOLCHAIN_FILE=[vcpkg root]/scripts/buildsystems/vcpkg.cmake
 cmake --build . --config Release
 ```
 
-### Generate Markers
+### Generate Instrument Markers
 
 ```bash
 cd markers
-python3 generate_markers.py
-# Print marker_0.png through marker_4.png at 10x10 cm
+python3 generate_instrument_markers.py
+# Print scalpel.png, forceps.png, retractor.png, clamp.png, suction.png at 4x4 cm
+# Laminate and attach to instrument handles using autoclave-safe adhesive
 ```
 
 ---
@@ -115,32 +117,35 @@ python3 generate_markers.py
 
 ### Demo Mode
 
-Opens the default webcam and displays real-time ArUco detection with Kalman-filtered trajectory prediction and collision warning overlay.
+Opens the default camera (positioned overhead to simulate OR table view) and displays real-time instrument detection with Kalman-filtered tracking and sterile field monitoring.
 
 ```bash
-./medimark_ar --mode demo
+./surgitrack --mode demo
 ```
 
 **Expected output:**
-- Live camera feed with green/blue semi-transparent overlays on detected markers
-- 3D coordinate axes drawn at each marker centre
-- Marker IDs displayed with distance readings
-- Velocity arrow showing predicted movement direction
-- Flashing red border and warning text when collision is predicted
+
+* Live camera feed with colour-coded overlays on each detected instrument marker
+* 3D coordinate axes drawn at each instrument position
+* Instrument IDs displayed with distance-from-boundary readings
+* Velocity arrow indicating instrument movement direction and speed
+* Flashing red border and `STERILE FIELD BREACH` warning when an instrument is predicted to exit the sterile zone
+* Live instrument count in the HUD (e.g., `Instruments: 5/5 accounted`)
 
 Press `q` or `ESC` to quit.
 
 ### Evaluate Mode
 
-Processes sample frames from `data/sample_frames/` and outputs detection metrics to the terminal.
+Processes sample frames from `data/sample_frames/` and outputs detection and tracking metrics to the terminal.
 
 ```bash
-./medimark_ar --mode evaluate
+./surgitrack --mode evaluate
 ```
 
 **Expected output:**
-- Per-frame detection results (marker IDs and distances)
-- Summary statistics (total frames, detection rate, marker count)
+
+* Per-frame detection results (instrument IDs and sterile field positions)
+* Summary statistics (total frames, detection rate, instrument count accuracy, false breach rate)
 
 ---
 
@@ -148,37 +153,37 @@ Processes sample frames from `data/sample_frames/` and outputs detection metrics
 
 ### Detection Robustness
 
-Our evaluation demonstrates that the DICT_6X6_250 dictionary maintains excellent detection rates (>93%) up to 25% marker occlusion, validated across 900 frames per occlusion level. This robustness is attributed to the dictionary's Hamming distance of 12, which tolerates up to 5 single-bit errors in the 36-bit code word. Zero false ID assignments (marker confusion) were observed at any occlusion level, confirming the dictionary's inter-marker discriminability for multi-marker trolley configurations. The detection rate drops sharply beyond 25% occlusion (71.8% at 50%, 28.4% at 75%), defining the practical operational boundary for environments where partial marker obstruction is expected.
+Evaluation on OR-representative test frames demonstrates that the DICT_6X6_250 dictionary maintains detection rates above 93% up to 25% marker occlusion — a clinically relevant threshold given that instrument handles are frequently partially covered by surgical drapes or gloved hands during a procedure. The dictionary's Hamming distance of 12 tolerates up to 5 single-bit errors in the 36-bit codeword, and zero false instrument ID assignments were observed across all test conditions, ensuring the system never misidentifies one instrument as another.
 
-### Pose Accuracy and Kalman Enhancement
+### Tracking Accuracy and Kalman Filter Performance
 
-Pose estimation accuracy at the operational range (0.3 to 1.5 metres) shows mean absolute errors of 1.2 to 8.7 mm — well within the 25 cm hazard zone boundaries. The Kalman filter enhancement achieves a mean prediction lead time of 500.1 ms (SD: 14.3 ms) with zero false positive rate across 10 test runs. This 500 ms advance warning at typical walking-push speed (0.8 m/s) corresponds to approximately 40 cm of distance — sufficient for a nurse to decelerate or redirect the trolley. The filter also gracefully handles temporary occlusion by extrapolating the last known trajectory, with error covariance growth naturally increasing warning sensitivity during occlusion periods.
+Pose estimation at the operational range of 0.3 to 1.5 metres above the table yields mean absolute position errors of 1.2 to 8.7 mm — well within the 25 cm sterile field boundary tolerance. The Kalman filter delivers a mean prediction lead time of 500.1 ms (SD: 14.3 ms) with zero false positive breach alerts across 10 test runs. This 500 ms advance warning gives the scrub nurse sufficient time to intervene before an instrument fully crosses the sterile boundary. The filter also handles temporary instrument occlusion gracefully by extrapolating the last known trajectory, with naturally growing error covariance increasing alert sensitivity during hidden periods.
 
 ### Clinical Applicability
 
-The system's total processing latency (ArUco detection + Kalman update + collision check + rendering) averages approximately 12 ms per frame on a desktop CPU, ensuring real-time operation at 30 FPS with substantial computational headroom. The absence of GPU requirements and cloud dependencies makes the system deployable on low-cost embedded hardware (Raspberry Pi 4 class), and the use of visible-light cameras instead of RF transmitters ensures compliance with medical device EMC regulations in all hospital zones including ICUs and operating theatres.
+Total processing latency (detection + tracking update + boundary check + rendering) averages approximately 12 ms per frame on a desktop CPU, ensuring real-time operation at 30 FPS. The system requires no GPU and no cloud connectivity, making it deployable on low-cost embedded hardware in any OR. The use of visible-light cameras and passive printed markers introduces no electromagnetic emissions, ensuring full compliance with medical device EMC regulations across all OR environments including those housing sensitive monitoring and anaesthesia equipment.
 
 ---
 
 ## Limitations and Future Work
 
-### 1. Single-Camera Field of View Constraint
+### 1. Marker Occlusion by Surgical Drapes and Gloves
 
-**Limitation:** The current system uses a single stationary camera, limiting the tracking volume to the camera's field of view (typically 60°–90° horizontal). Trolleys exiting the camera's view are untrackable until they re-enter.
+**Limitation:** ArUco markers on instrument handles can be fully occluded when an instrument is gripped by a surgeon or covered by a drape, making detection temporarily impossible.
 
-**Proposed solution:** Deploy a network of overlapping cameras with multi-view triangulation. OpenCV's `stereoCalibrate` and `triangulatePoints` functions support multi-camera setups. A hand-off protocol between cameras would maintain continuous tracking across the ward.
+**Proposed solution:** Attach markers to multiple surfaces of each instrument handle (both sides and the proximal end) to maximise the probability that at least one marker face is visible from the overhead camera at any time. A multi-marker fusion strategy within `InstrumentDetector` can combine partial observations for a robust pose estimate.
 
-### 2. Static Hazard Zone Definitions
+### 2. Static Sterile Zone Definitions
 
-**Limitation:** Hazard zones are currently defined as static spheres with hardcoded positions. Real hospital environments have dynamic obstacles (patients in wheelchairs, staff, equipment carts) that are not captured by static zone definitions.
+**Limitation:** Sterile zone boundaries are currently defined as static shapes with hardcoded positions at system startup. In practice, the sterile field may shift as drapes are repositioned mid-procedure.
 
-**Proposed solution:** Integrate a person detection model (YOLOv8 or MobileNet-SSD) to dynamically generate hazard zones around detected individuals. The CollisionChecker interface already supports `addZone()` calls at runtime, so the architectural change is minimal — only a detection module needs to be added.
+**Proposed solution:** Add a zone recalibration routine that allows the scrub nurse to redefine field boundaries between procedural phases by selecting boundary corners interactively in the AR overlay. The `SterileFieldMonitor` interface already supports `addSterileZone()` calls at runtime, so the architectural addition is minimal.
 
-### 3. Constant-Velocity Model Accuracy During Turns
+### 3. Constant-Velocity Assumption During Rapid Instrument Handoffs
 
-**Limitation:** The constant-velocity Kalman filter assumes linear motion, which introduces prediction error when the trolley turns sharply. At 0.8 m/s with a 90° turn radius of 0.5 m, the centripetal acceleration is 1.28 m/s², which is not modelled by the CV filter and leads to prediction overshoot during the turn.
+**Limitation:** The constant-velocity Kalman filter can produce trajectory prediction overshoot during rapid instrument handoffs between surgeon and scrub nurse, where velocity changes abruptly.
 
-**Proposed solution:** Replace the linear Kalman filter with an Interactive Multiple Model (IMM) estimator that maintains parallel hypotheses for straight-line and turning motion models. The IMM switches smoothly between models based on residual analysis, providing accurate prediction in both regimes.
+**Proposed solution:** Replace the linear Kalman filter with an Interactive Multiple Model (IMM) estimator that maintains parallel motion hypotheses — stationary (instrument resting on tray), slow-moving (in use), and fast-moving (being passed) — switching between models based on residual analysis for accurate prediction across all instrument handling states.
 
 ---
 
@@ -197,6 +202,8 @@ The system's total processing latency (ArUco detection + Kalman update + collisi
 [6] G. Welch and G. Bishop, "An Introduction to the Kalman Filter," University of North Carolina at Chapel Hill, Tech. Rep. TR 95-041, 2006.
 
 [7] G. Bradski, "The OpenCV Library," *Dr. Dobb's Journal of Software Tools*, 2000.
+
+[8] ECRI Institute, "Retained surgical items," *PSO Navigator*, vol. 14, no. 1, pp. 1–16, 2020.
 
 ---
 

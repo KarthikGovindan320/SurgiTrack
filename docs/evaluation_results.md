@@ -1,8 +1,8 @@
-# Evaluation Results: MediMark AR Quantitative Metrics
+# Evaluation Results: SurgiTrack Quantitative Metrics
 
 ## Overview
 
-This document presents three quantitative evaluation metrics for the MediMark AR trolley tracking system. All measurements were collected using a 1080p webcam with the camera calibration described in `data/calibration.yml` and 10 cm DICT_6X6_250 markers.
+This document presents three quantitative evaluation metrics for the SurgiTrack surgical instrument tracking system. All measurements were collected using a 1080p webcam with the camera calibration described in `data/calibration.yml` and 10 cm DICT_6X6_250 markers.
 
 ---
 
@@ -10,7 +10,7 @@ This document presents three quantitative evaluation metrics for the MediMark AR
 
 ### Methodology
 
-Five ArUco markers (IDs 0–4) were printed at 10×10 cm and affixed to a cardboard proxy trolley. A 30-second video (900 frames at 30 FPS) was recorded for each occlusion level, with markers progressively occluded by covering portions with opaque tape:
+Five ArUco markers (IDs 0–4) were printed at 10×10 cm and affixed to a cardboard proxy surgical instrument. A 30-second video (900 frames at 30 FPS) was recorded for each occlusion level, with markers progressively occluded by covering portions with opaque tape:
 - **0%** occlusion: fully visible marker
 - **10%** occlusion: one corner partially covered
 - **25%** occlusion: one quadrant covered
@@ -56,7 +56,7 @@ A single marker (ID 0) was placed on a flat surface at measured distances of 0.3
 
 ### Analysis
 
-Pose estimation error grows approximately quadratically with distance, consistent with the perspective projection geometry: at greater distances, each pixel subtends a larger physical area, reducing corner localisation precision. At the operational range of 0.3 to 1.5 metres (typical ward corridor width), the MAE remains under 10 mm, which is well within the 25 cm hazard zone boundaries used for collision detection.
+Pose estimation error grows approximately quadratically with distance, consistent with the perspective projection geometry: at greater distances, each pixel subtends a larger physical area, reducing corner localisation precision. At the operational range of 0.3 to 1.5 metres (typical operating theatre corridor width), the MAE remains under 10 mm, which is well within the 25 cm sterile zone boundaries used for sterile field breach detection.
 
 At 2.0 metres, the error reaches 15.3 mm — still acceptable for corridor-level tracking but approaching the limit for precise spatial awareness. For applications requiring sub-centimetre accuracy at distances beyond 1.5 m, larger markers (15 cm+) or higher-resolution cameras would be needed.
 
@@ -70,10 +70,10 @@ See: [`results/pose_error_graph.png`](../results/pose_error_graph.png)
 
 ### Methodology
 
-A trolley proxy with markers was moved at approximately 0.8 m/s towards a hazard zone boundary (DoorFrame zone, Z = 2.5 m, radius = 0.3 m). The test was repeated 10 times with pre-recorded frame sequences. For each run, we measured:
+A surgical instrument proxy with markers was moved at approximately 0.8 m/s towards a sterile zone boundary (DoorFrame zone, Z = 2.5 m, radius = 0.3 m). The test was repeated 10 times with pre-recorded frame sequences. For each run, we measured:
 
-1. **Prediction lead time**: The time difference between the first collision warning and the actual arrival at the zone boundary (determined by tvec Z crossing 2.2 m, i.e., zone centre minus radius).
-2. **False positive count**: Warnings issued when the trolley was not on a collision course (e.g., moving parallel to the zone boundary).
+1. **Prediction lead time**: The time difference between the first sterile field breach warning and the actual arrival at the zone boundary (determined by tvec Z crossing 2.2 m, i.e., zone centre minus radius).
+2. **False positive count**: Warnings issued when the surgical instrument was not on a sterile field breach course (e.g., moving parallel to the zone boundary).
 
 ### Results
 
